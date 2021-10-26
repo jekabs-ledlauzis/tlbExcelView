@@ -1,5 +1,18 @@
 <?php
+
+require __DIR__ . '/../../../vendor/autoload.php';
+
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Worksheet\PageSetup;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\Color;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
+
+
 Yii::import('zii.widgets.grid.CGridView');
+
 
 /**
 * @author Nikola Kostadinov
@@ -30,7 +43,7 @@ Yii::import('zii.widgets.grid.CGridView');
     'keywords'             => '',
     'category'             => '',
     'landscapeDisplay'     => true, // Default: false
-    'A4'                   => true, // Default: false - ie : Letter (PHPExcel default)
+    'A4'                   => true, // Default: false - ie : Letter (Spreadsheet default)
     'RTL'                  => false, // Default: false
     'pageFooterText'       => '&RThis is page no. &P of &N pages', // Default: '&RPage &P of &N'
     'automaticSum'         => true, // Default: false
@@ -56,8 +69,8 @@ Yii::import('zii.widgets.grid.CGridView');
 
 class tlbExcelView extends CGridView
 {
-    //the PHPExcel object
-    public $libPath = 'ext.phpexcel.Classes.PHPExcel'; //the path to the PHP excel lib
+    //the Spreadsheet object
+    public $libPath = 'ext.phpexcel.Classes.Spreadsheet'; //the path to the PHP excel lib
     public static $objPHPExcel = null;
     public static $activeSheet = null;
 
@@ -80,7 +93,7 @@ class tlbExcelView extends CGridView
     //config
     public $offset = 0;
     public $autoWidth = true;
-    public $exportType = 'Excel2007';
+    public $exportType = 'Xlsx';
     public $disablePaging = true;
     public $filename = null; //export FileName
     public $stream = true; //stream to browser
@@ -148,8 +161,9 @@ class tlbExcelView extends CGridView
             'extension'=>'xls',
             'caption'=>'Excel(*.xls)',
         ),
-        'Excel2007'	=> array(
-            'Content-type'=>'application/vnd.ms-excel',
+        'Xlsx'	=> array(
+            //'Content-type'=>'application/vnd.ms-excel',
+            'Content-type'=>'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'extension'=>'xlsx',
             'caption'=>'Excel(*.xlsx)',				
         ),
@@ -194,16 +208,16 @@ class tlbExcelView extends CGridView
             spl_autoload_unregister(array('YiiBase','autoload'));             
             Yii::import($this->libPath, true);
 
-            // Get here some PHPExcel constants in order to use them elsewhere
-            self::$papersize_A4 = PHPExcel_Worksheet_PageSetup::PAPERSIZE_A4;
-            self::$orientation_landscape = PHPExcel_Worksheet_PageSetup::ORIENTATION_LANDSCAPE;
-            self::$fill_solid = PHPExcel_Style_Fill::FILL_SOLID;
+            // Get here some Spreadsheet constants in order to use them elsewhere
+            self::$papersize_A4 = PageSetup::PAPERSIZE_A4;
+            self::$orientation_landscape = PageSetup::ORIENTATION_LANDSCAPE;
+            self::$fill_solid = Fill::FILL_SOLID;
             if (!isset($this->border_style)) {
-                $this->border_style = PHPExcel_Style_Border::BORDER_THIN;
+                $this->border_style = Border::BORDER_THIN;
             }
-            self::$horizontal_center = PHPExcel_Style_Alignment::HORIZONTAL_CENTER;
-            self::$horizontal_right = PHPExcel_Style_Alignment::HORIZONTAL_RIGHT;
-            self::$vertical_center = PHPExcel_Style_Alignment::VERTICAL_CENTER;
+            self::$horizontal_center = Alignment::HORIZONTAL_CENTER;
+            self::$horizontal_right = Alignment::HORIZONTAL_RIGHT;
+            self::$vertical_center = Alignment::VERTICAL_CENTER;
 
             spl_autoload_register(array('YiiBase','autoload'));  
 
@@ -211,10 +225,10 @@ class tlbExcelView extends CGridView
             
              //template
             if($this->report_template) {
-                self::$objPHPExcel = PHPExcel_IOFactory::load($this->report_template);
+                self::$objPHPExcel = IOFactory::load($this->report_template);
                 $this->offset = self::$objPHPExcel->getActiveSheet()->getHighestRow()+2;
             }    
-            else  self::$objPHPExcel = new PHPExcel();
+            else  self::$objPHPExcel = new Spreadsheet();
             self::$activeSheet = self::$objPHPExcel->getActiveSheet();
             
             // Set some basic document properties
@@ -533,10 +547,10 @@ class tlbExcelView extends CGridView
                 ->setOddFooter('&L&B' . self::$objPHPExcel->getProperties()->getTitle() . $this->pageFooterText);
             self::$activeSheet->getPageSetup()
                 ->setPrintArea('A1:' . $this->columnName(count($this->columns)) . ($this->offset + $row + 2))
-                ->setFitToWidth();
+                ->setFitToWidth(1);
 
             //create writer for saving
-            $objWriter = PHPExcel_IOFactory::createWriter(self::$objPHPExcel, $this->exportType);
+            $objWriter = IOFactory::createWriter(self::$objPHPExcel, $this->exportType);
             if (!$this->stream) {
                 $objWriter->save($this->filename);
             } else {
@@ -545,12 +559,14 @@ class tlbExcelView extends CGridView
                     $this->filename = $this->title;
                 }
                 $this->cleanOutput();
+                $contentType = $this->mimeTypes[$this->exportType]['Content-type'];
+                $filename = $this->filename . '.' . $this->mimeTypes[$this->exportType]['extension'];
                 header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
                 header('Pragma: public');
-                header('Content-type: '.$this->mimeTypes[$this->exportType]['Content-type']);
-                header('Content-Disposition: attachment; filename="' . $this->filename . '.' . $this->mimeTypes[$this->exportType]['extension'] . '"');
-                header('Cache-Control: max-age=0');				
-                $objWriter->save('php://output');			
+                header('Content-type: ' . $contentType);
+                header('Content-Disposition: attachment; filename="' . $filename . '"');
+                header('Cache-Control: max-age=0');
+                $objWriter->save('php://output');
                 Yii::app()->end();
             }
         } else {
