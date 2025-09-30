@@ -6,7 +6,6 @@ use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Worksheet\PageSetup;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
-use PhpOffice\PhpSpreadsheet\Style\Color;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 
@@ -71,12 +70,12 @@ class tlbExcelView extends CGridView
 {
     //the Spreadsheet object
     public $libPath = 'ext.phpexcel.Classes.Spreadsheet'; //the path to the PHP excel lib
-    public static $objPHPExcel = null;
-    public static $activeSheet = null;
+    public static $objPHPExcel;
+    public static $activeSheet;
 
     //Document properties
     public $creator = 'Nikola Kostadinov';
-    public $title = null;
+    public $title;
     public $subject = 'Subject';
     public $description = '';
     public $category = '';
@@ -95,7 +94,7 @@ class tlbExcelView extends CGridView
     public $autoWidth = true;
     public $exportType = 'Xlsx';
     public $disablePaging = true;
-    public $filename = null; //export FileName
+    public $filename; //export FileName
     public $stream = true; //stream to browser
     public $grid_mode = 'grid'; //Whether to display grid ot export it to selected format. Possible values(grid, export)
     public $grid_mode_var = 'grid_mode'; //GET var for the grid mode
@@ -147,9 +146,9 @@ class tlbExcelView extends CGridView
     public $exportText = 'Export to: ';
 
     //callbacks
-    public $onRenderHeaderCell = null;
-    public $onRenderDataCell = null;
-    public $onRenderFooterCell = null;
+    public $onRenderHeaderCell;
+    public $onRenderDataCell;
+    public $onRenderFooterCell;
     
     public $company;
     public $rate_line;
@@ -193,12 +192,12 @@ class tlbExcelView extends CGridView
             $this->exportType = $_GET['exportType'];
         }
         $lib = Yii::getPathOfAlias($this->libPath).'.php';
-        if (($this->grid_mode == 'export') && (!file_exists($lib))) {
+        if (($this->grid_mode === 'export') && (!file_exists($lib))) {
             $this->grid_mode = 'grid';
             Yii::log("PHP Excel lib not found($lib). Export disabled !", CLogger::LEVEL_WARNING, 'EExcelview');
         }
             
-        if ($this->grid_mode == 'export') {
+        if ($this->grid_mode === 'export') {
             if (!isset($this->title)) {
                 $this->title = Yii::app()->getController()->getPageTitle();
             }
@@ -228,7 +227,9 @@ class tlbExcelView extends CGridView
                 self::$objPHPExcel = IOFactory::load($this->report_template);
                 $this->offset = self::$objPHPExcel->getActiveSheet()->getHighestRow()+2;
             }    
-            else  self::$objPHPExcel = new Spreadsheet();
+            else {
+                self::$objPHPExcel = new Spreadsheet();
+            }
             self::$activeSheet = self::$objPHPExcel->getActiveSheet();
             
             // Set some basic document properties
@@ -286,22 +287,6 @@ class tlbExcelView extends CGridView
                     'color' => array('rgb' => $this->headerTextColor),
                 )
             );
-            self::$headerStyle = array(
-                'borders' => array(
-                    'allborders' => array(
-                                        'style' => $this->border_style,
-                                        'color' => array('rgb' => $this->headerBorderColor),
-                                    ),
-                ),
-                'fill' => array(
-                    'type' => self::$fill_solid,
-                    'color' => array('rgb' => $this->headerBgColor),
-                ),
-                'font' => array(
-                    'bold' => true,
-                    'color' => array('rgb' => $this->headerTextColor),
-                )
-            );
             self::$captionStyle = array(
                 'borders' => array(
                     'allborders' => array(
@@ -332,16 +317,16 @@ class tlbExcelView extends CGridView
         if (!empty($this->caption)) {
             
              self::$activeSheet->mergeCells($this->columnName(1) . (string)$this->offset.':'.$this->columnName($this->caption_columns) . (string)$this->offset);
-             $cell = self::$activeSheet->setCellValue($this->columnName(1) . (string)$this->offset, $this->caption , true);
+             self::$activeSheet->setCellValue($this->columnName(1) . (string)$this->offset, $this->caption);
              self::$activeSheet->getRowDimension($this->offset)->setRowHeight(20);
              $caption = self::$activeSheet->getStyle($this->columnName(1) .(string)$this->offset.':' . $this->columnName(5) . (string)$this->offset);
              $caption->applyFromArray(self::$captionStyle);
-             $this->offset += 1;
+             ++$this->offset;
         }    
             
         $a = 0;
         foreach ($this->columns as $column) {
-            $a = $a + 1;
+            ++$a;
             if ($column instanceof CButtonColumn) {
                 $head = $column->header;
             } else if (($column->header === null) && ($column->name !== null)) {
@@ -354,10 +339,10 @@ class tlbExcelView extends CGridView
                 $head =trim($column->header)!=='' ? $column->header : $column->grid->blankDisplay;
             }
 
-            $cell = self::$activeSheet->setCellValue($this->columnName($a) . (string)($this->offset+1), $head, true);
+            $cell = self::$activeSheet->setCellValue($this->columnName($a) . (string)($this->offset+1), $head);
 
             if (is_callable($this->onRenderHeaderCell)) {
-                call_user_func_array($this->onRenderHeaderCell, array($cell, $head));				
+                call_user_func($this->onRenderHeaderCell, $cell, $head);
             }
         }
 
@@ -369,7 +354,7 @@ class tlbExcelView extends CGridView
         $header->applyFromArray(self::$headerStyle);
         self::$activeSheet->getRowDimension(1)->setRowHeight($this->headerHeight);
 
-        $this->offset += 1;
+        ++$this->offset;
     }
 
     public function renderBody()
@@ -426,7 +411,7 @@ class tlbExcelView extends CGridView
             // May be improved notably by exposing the formats as public
             // May be usable only for French-style number formatting ?
             if (preg_match("/^[0-9]*\\" . $this->thousandsSeparator . "[0-9]*\\" . $this->decimalSeparator . "[0-9]*$/", strip_tags($value))) {
-                $content = str_replace($this->decimalSeparator, '.', str_replace($this->thousandsSeparator, '', strip_tags($value)));
+                $content = str_replace(array($this->thousandsSeparator, $this->decimalSeparator), array('', '.'), strip_tags($value));
                 if (isset($column->format)) $format = $column->format; else $format = '#\.##0.00';
             } else if (preg_match("/^[0-9]*\\" . $this->decimalSeparator . "[0-9]*$/", strip_tags($value))) {
                 $content = str_replace($this->decimalSeparator, '.', strip_tags($value));
@@ -434,13 +419,15 @@ class tlbExcelView extends CGridView
             } else if (!$this->displayZeros && ((strip_tags($value) === '0') || (strip_tags($value) === $this->zeroPlaceholder))) {
                 $content = $this->zeroPlaceholder;
                 self::$activeSheet->getStyle($this->columnName($a) . ($row + 2))->getAlignment()->setHorizontal(self::$horizontal_right);
-                if (!isset($format))  $format = '0.00';
+                if (!isset($format)) {
+                    $format = '0.00';
+                }
             } else {
                 $content = strip_tags($value);
                 $format = null;
             }
 
-            $cell = self::$activeSheet->setCellValue($this->columnName($a) . ($row + 2 + $this->offset), $content, true);
+            $cell = self::$activeSheet->setCellValue($this->columnName($a) . ($row + 2 + $this->offset), $content);
 
             // Format each cell's number - if any
             if (!is_null($format)) {
@@ -463,26 +450,28 @@ class tlbExcelView extends CGridView
     public function renderFooter($row)
     {
         $a = 0;
-        foreach ($this->columns as $n => $column) {
-            $a = $a + 1;
+        foreach ($this->columns as $column) {
+            ++$a;
             if ($column->footer) {
                 $footer = trim($column->footer) !== '' ? $column->footer : $column->grid->blankDisplay;
 
-                $cell = self::$activeSheet->setCellValue($this->columnName($a) . ($row + 2 + $this->offset), $footer, true);
+                $cell = self::$activeSheet->setCellValue($this->columnName($a) . ($row + 2 + $this->offset), $footer);
                               
                 if(is_callable($this->onRenderFooterCell)) {
-                    call_user_func_array($this->onRenderFooterCell, array($cell, $footer));				
+                    call_user_func($this->onRenderFooterCell, $cell, $footer);
                 }
             } else if (($this->automaticSum && in_array($a, self::$summableColumns)) || (!$this->automaticSum && in_array($a, $this->sumColumns)) ) {
                 // We want to render automatic sums in the footer if no footer was already present in the grid
-                $cell = self::$activeSheet->setCellValue($this->columnName($a) . ($row + 2 + $this->offset), '=SUM(' . $this->columnName($a) . (string)(1+$this->offset).':' . $this->columnName($a) . ($row + 1 + $this->offset) . ')', true);
-                $sum = self::$activeSheet->getCell($this->columnName($a) . ($row + 2 + $this->offset))->getCalculatedValue();
-              
+                $cell = self::$activeSheet->setCellValue($this->columnName($a) . ($row + 2 + $this->offset), '=SUM(' . $this->columnName($a) . (string)(1+$this->offset).':' . $this->columnName($a) . ($row + 1 + $this->offset) . ')');
+                self::$activeSheet->getCell($this->columnName($a) . ($row + 2 + $this->offset))->getCalculatedValue();
+
                 
                 if (isset($column->htmlOptions['format'])){
 
                     $format = $column->htmlOptions['format'];
-                } else    $format = '0.00';                    
+                } else {
+                    $format = '0.00';
+                }
             
 
                 // We won't set the whole row's borders and number format, so proceed with each cell individually
@@ -491,17 +480,17 @@ class tlbExcelView extends CGridView
                     ->getNumberFormat()->setFormatCode($format);
 
                 if(is_callable($this->onRenderFooterCell)) {
-                    call_user_func_array($this->onRenderFooterCell, array($cell, $footer));				
+                    call_user_func($this->onRenderFooterCell, $cell, $footer);
                 }
 
                 // Add a label before the first summable column (supposing it's not the first…)
                // if (current(self::$summableColumns) == $a) {
-                    $cell = self::$activeSheet->setCellValue($this->columnName(1) . ($row + 2 + $this->offset), $this->sumLabel, true);
+                    $cell = self::$activeSheet->setCellValue($this->columnName(1) . ($row + 2 + $this->offset), $this->sumLabel);
                     self::$activeSheet->getStyle($this->columnName(1) . ($row + 2 + $this->offset))
                         ->applyFromArray(array('font' => array('bold' => true,'size' => 12)))
                         ->getAlignment()->setHorizontal(self::$horizontal_right);
                     if(is_callable($this->onRenderFooterCell)) {
-                        call_user_func_array($this->onRenderFooterCell, array($cell, $footer));				
+                        call_user_func($this->onRenderFooterCell, $cell, $footer);
                     }
                 }
             }
@@ -512,19 +501,19 @@ class tlbExcelView extends CGridView
        self::$activeSheet->getStyle('A' . ($row + 2 + $this->offset) . ':' . $this->columnName($a) . ($row + 2 + $this->offset))->getAlignment()->setVertical(self::$vertical_center);
        self::$activeSheet->getRowDimension($row + 2 + $this->offset)->setRowHeight($this->footerHeight);
         //}
-       $this->offset += 1;
+       ++$this->offset;
     }
 
     public function run()
     {
-        if ($this->grid_mode == 'export') {
+        if ($this->grid_mode === 'export') {
 
             if($this->company){
-                self::$activeSheet->setCellValue('A'.(string)($this->offset-2) , $this->company, true);
+                self::$activeSheet->setCellValue('A'.(string)($this->offset-2) , $this->company);
             }
 
             if($this->rate_line){
-                self::$activeSheet->setCellValue('A'.(string)($this->offset-1) , $this->rate_line, true);
+                self::$activeSheet->setCellValue('A'.(string)($this->offset-1) , $this->rate_line);
             }
             
             $this->renderHeader();
@@ -534,7 +523,7 @@ class tlbExcelView extends CGridView
             //set auto width
             if ($this->autoWidth) {
                 foreach ($this->columns as $n => $column) {
-                    $cell = self::$activeSheet->getColumnDimension($this->columnName($n + 1))->setAutoSize(true);
+                    self::$activeSheet->getColumnDimension($this->columnName($n + 1))->setAutoSize(true);
                 }
             }
 
@@ -558,7 +547,7 @@ class tlbExcelView extends CGridView
                 if(!$this->filename) {
                     $this->filename = $this->title;
                 }
-                $this->cleanOutput();
+                self::cleanOutput();
                 $contentType = $this->mimeTypes[$this->exportType]['Content-type'];
                 $filename = $this->filename . '.' . $this->mimeTypes[$this->exportType]['extension'];
                 header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
@@ -575,21 +564,24 @@ class tlbExcelView extends CGridView
     }
 
     /**
-    * Returns the corresponding Excel column.(Abdul Rehman from yii forum)
-    * 
-    * @param int $index
-    * @return string
-    */
+     * Returns the corresponding Excel column.(Abdul Rehman from yii forum)
+     *
+     * @param int $index
+     * @return string
+     * @throws Exception
+     */
     public function columnName($index)
     {
         --$index;
         if (($index >= 0) && ($index < 26)) {
             return chr(ord('A') + $index);
-        } else if ($index > 25) {
-            return ($this->columnName($index / 26)) . ($this->columnName($index%26 + 1));
-        } else {
-            throw new Exception("Invalid Column # " . ($index + 1));
         }
+
+        if ($index > 25) {
+            return ($this->columnName($index / 26)) . ($this->columnName($index%26 + 1));
+        }
+
+        throw new Exception("Invalid Column # " . ($index + 1));
     }
     
     public function renderExportButtons()
@@ -599,7 +591,7 @@ class tlbExcelView extends CGridView
             $type = is_array($button) ? $key : $button;
             $url = parse_url(Yii::app()->request->requestUri);
             //$content[] = CHtml::link($item['caption'], '?'.$url['query'].'exportType='.$type.'&'.$this->grid_mode_var.'=export');
-            if (key_exists('query', $url)) {
+            if (array_key_exists('query', $url)) {
                 $content[] = CHtml::link($item['caption'], '?' . $url['query'] . '&exportType=' . $type . '&' . $this->grid_mode_var . '=export');          
             } else {
                 $content[] = CHtml::link($item['caption'], '?exportType=' . $type . '&' . $this->grid_mode_var . '=export');				
