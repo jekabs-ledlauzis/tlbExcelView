@@ -69,7 +69,9 @@ Yii::import('zii.widgets.grid.CGridView');
 class tlbExcelView extends CGridView
 {
     //the Spreadsheet object
-    public $libPath = 'ext.phpexcel.Classes.Spreadsheet'; //the path to the PHP excel lib
+    // Unused since PhpSpreadsheet is loaded by Composer (see require at the top of this file).
+    // Kept so existing configs that still set libPath don't fail.
+    public $libPath;
     public static $objPHPExcel;
     public static $activeSheet;
 
@@ -191,21 +193,12 @@ class tlbExcelView extends CGridView
         if (isset($_GET['exportType'])) {
             $this->exportType = $_GET['exportType'];
         }
-        $lib = Yii::getPathOfAlias($this->libPath).'.php';
-        if (($this->grid_mode === 'export') && (!file_exists($lib))) {
-            $this->grid_mode = 'grid';
-            Yii::log("PHP Excel lib not found($lib). Export disabled !", CLogger::LEVEL_WARNING, 'EExcelview');
-        }
-            
         if ($this->grid_mode === 'export') {
             if (!isset($this->title)) {
                 $this->title = Yii::app()->getController()->getPageTitle();
             }
             $this->initColumns();
             //parent::init();
-            //Autoload fix
-            spl_autoload_unregister(array('YiiBase','autoload'));             
-            Yii::import($this->libPath, true);
 
             // Get here some Spreadsheet constants in order to use them elsewhere
             self::$papersize_A4 = PageSetup::PAPERSIZE_A4;
@@ -218,7 +211,6 @@ class tlbExcelView extends CGridView
             self::$horizontal_right = Alignment::HORIZONTAL_RIGHT;
             self::$vertical_center = Alignment::VERTICAL_CENTER;
 
-            spl_autoload_register(array('YiiBase','autoload'));  
 
             // Creating a workbook
             
@@ -257,14 +249,14 @@ class tlbExcelView extends CGridView
             // Initialize styles that will be used later
             self::$style = array(
                 'borders' => array(
-                    'allborders' => array(
-                                        'style' => $this->border_style,
+                    'allBorders' => array(
+                                        'borderStyle' => $this->border_style,
                                         'color' => array('rgb' => $this->borderColor),
                                     ),
                 ),
                 'fill' => array(
-                    'type' => self::$fill_solid,
-                    'color' => array('rgb' => $this->bgColor),
+                    'fillType' => self::$fill_solid,
+                    'startColor' => array('rgb' => $this->bgColor),
                 ),
                 'font' => array(
                     //'bold' => false,
@@ -273,14 +265,14 @@ class tlbExcelView extends CGridView
             );
             self::$headerStyle = array(
                 'borders' => array(
-                    'allborders' => array(
-                                        'style' => $this->border_style,
+                    'allBorders' => array(
+                                        'borderStyle' => $this->border_style,
                                         'color' => array('rgb' => $this->headerBorderColor),
                                     ),
                 ),
                 'fill' => array(
-                    'type' => self::$fill_solid,
-                    'color' => array('rgb' => $this->headerBgColor),
+                    'fillType' => self::$fill_solid,
+                    'startColor' => array('rgb' => $this->headerBgColor),
                 ),
                 'font' => array(
                     'bold' => true,
@@ -289,14 +281,14 @@ class tlbExcelView extends CGridView
             );
             self::$captionStyle = array(
                 'borders' => array(
-                    'allborders' => array(
-                                        'style' =>'',
+                    'allBorders' => array(
+                                        'borderStyle' => Border::BORDER_NONE,
                                         'color' => array('rgb' => '000000'),
                                     ),
                 ),
                 'fill' => array(
-                    'type' => self::$fill_solid,
-                    'color' => array('rgb' => 'FFFFFF'),
+                    'fillType' => self::$fill_solid,
+                    'startColor' => array('rgb' => 'FFFFFF'),
                 ),
                 'font' => array(
                     'bold' => true,
