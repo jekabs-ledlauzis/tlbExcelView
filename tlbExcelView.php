@@ -410,20 +410,20 @@ class tlbExcelView extends CGridView
             // Check if the cell value is a number, then format it accordingly
             // May be improved notably by exposing the formats as public
             // May be usable only for French-style number formatting ?
-            if (preg_match("/^[0-9]*\\" . $this->thousandsSeparator . "[0-9]*\\" . $this->decimalSeparator . "[0-9]*$/", strip_tags($value))) {
-                $content = str_replace(array($this->thousandsSeparator, $this->decimalSeparator), array('', '.'), strip_tags($value));
+            if (preg_match("/^[0-9]*\\" . $this->thousandsSeparator . "[0-9]*\\" . $this->decimalSeparator . "[0-9]*$/", strip_tags($value ?? ''))) {
+                $content = str_replace(array($this->thousandsSeparator, $this->decimalSeparator), array('', '.'), strip_tags($value ?? ''));
                 if (isset($column->format)) $format = $column->format; else $format = '#\.##0.00';
-            } else if (preg_match("/^[0-9]*\\" . $this->decimalSeparator . "[0-9]*$/", strip_tags($value))) {
-                $content = str_replace($this->decimalSeparator, '.', strip_tags($value));
+            } else if (preg_match("/^[0-9]*\\" . $this->decimalSeparator . "[0-9]*$/", strip_tags($value ?? ''))) {
+                $content = str_replace($this->decimalSeparator, '.', strip_tags($value ?? ''));
                  if (!isset($format))  $format = '0.00';
-            } else if (!$this->displayZeros && ((strip_tags($value) === '0') || (strip_tags($value) === $this->zeroPlaceholder))) {
+            } else if (!$this->displayZeros && ((strip_tags($value ?? '') === '0') || (strip_tags($value ?? '') === $this->zeroPlaceholder))) {
                 $content = $this->zeroPlaceholder;
                 self::$activeSheet->getStyle($this->columnName($a) . ($row + 2))->getAlignment()->setHorizontal(self::$horizontal_right);
                 if (!isset($format)) {
                     $format = '0.00';
                 }
             } else {
-                $content = strip_tags($value);
+                $content = strip_tags($value ?? '');
                 $format = null;
             }
 
